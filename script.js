@@ -228,19 +228,50 @@ function renderNetwork(r,a){
     meoActive?2.8:1.5
   );
 
+  // Six MEO satellites distributed consistently across two planes:
+  // Plane A: MEO-1, MEO-3, MEO-5
+  // Plane B: MEO-2, MEO-4, MEO-6
   for(let i=0;i<6;i++){
-    const lon=((serviceState.meoBaseLongitude+i*60+180)%360)-180;
-    const lat=28*Math.sin(Cesium.Math.toRadians(lon));
-    const pos=Cesium.Cartesian3.fromDegrees(lon,lat,MEO_ALTITUDE_M);
+    const planeName=i%2===0?"A":"B";
+    const planePhaseDeg=planeName==="A"?0:90;
+    const slotInPlane=Math.floor(i/2);
+
+    // Three satellites per plane, separated by 120 degrees.
+    // Plane B is offset by 60 degrees in longitude.
+    const planeLongitudeOffsetDeg=planeName==="A"?0:60;
+    const lon=(
+      (
+        serviceState.meoBaseLongitude+
+        slotInPlane*120+
+        planeLongitudeOffsetDeg+
+        180
+      )%360
+    )-180;
+
+    const lat=28*Math.sin(
+      Cesium.Math.toRadians(lon+planePhaseDeg)
+    );
+
+    const pos=Cesium.Cartesian3.fromDegrees(
+      lon,
+      lat,
+      MEO_ALTITUDE_M
+    );
+
     const isPrimary=i===0;
+    const satelliteLabel=meoActive
+      ?(
+          isPrimary
+            ?"MEO PRIMARY\nPLANE A"
+            :`MEO-${i+1}\nPLANE ${planeName}`
+        )
+      :`MEO-${i+1} OPTION\nPLANE ${planeName}`;
 
     addSatellite(
       `MEO-${i+1}`,
       pos,
       Cesium.Color.CYAN,
-      meoActive
-        ?(isPrimary?"MEO PRIMARY":`MEO-${i+1}`)
-        :`MEO-${i+1} OPTION`,
+      satelliteLabel,
       meoActive?(isPrimary?1.05:.78):.66,
       meoActive?1:.34
     );
