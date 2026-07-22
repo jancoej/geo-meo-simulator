@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GEO/MEO Customer Solutions Engineering Simulator</title>
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.143.0/Build/Cesium/Cesium.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.143.0/Build/Cesium/Widgets/widgets.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-header">
+      <div>
+        <span class="eyebrow">SATELLITE SOLUTIONS ENGINEERING PORTFOLIO</span>
+        <h1>GEO/MEO Customer Solutions Engineering Simulator</h1>
+        <p>Requirements discovery · solution design · link-budget review · IP services · commercial proposal</p>
+      </div>
+      <div class="header-actions">
+        <div class="opportunity-badge">
+          <small>OPPORTUNITY</small>
+          <strong id="headerOpportunity">Enterprise Resilience</strong>
+        </div>
+        <div class="solution-status">
+          <span id="solutionStatusDot" class="status-dot nominal"></span>
+          <div><small>SOLUTION STATUS</small><strong id="solutionStatus">FEASIBLE</strong></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="requirements-column">
+        <section class="panel">
+          <div class="panel-title">
+            <div><span class="section-tag">DISCOVERY</span><h2>Customer Requirements</h2></div>
+            <span class="step-number">01</span>
+          </div>
+
+          <label class="form-field"><span>Opportunity name</span><input id="opportunityName" value="Enterprise Resilience"></label>
+          <label class="form-field"><span>Customer segment</span>
+            <select id="customerSegment">
+              <option value="enterprise">Enterprise network</option>
+              <option value="cellular">Cellular backhaul</option>
+              <option value="broadcast">Broadcast / multicast</option>
+              <option value="government">Government / critical communications</option>
+              <option value="maritime">Maritime / mobility</option>
+            </select>
+          </label>
+          <label class="form-field"><span>Service region</span>
+            <select id="serviceRegion">
+              <option value="europe">Europe</option><option value="africa">Africa</option><option value="americas">Americas</option><option value="middleeast">Middle East</option><option value="asia">Asia-Pacific</option>
+            </select>
+          </label>
+
+          <div class="two-column-fields">
+            <label class="form-field"><span>Sites</span><input id="siteCount" type="number" min="1" max="500" value="8"></label>
+            <label class="form-field"><span>Traffic growth</span>
+              <select id="trafficGrowth"><option value="1.10">10%</option><option value="1.25" selected>25%</option><option value="1.50">50%</option><option value="2.00">100%</option></select>
+            </label>
+          </div>
+
+          <div class="two-column-fields">
+            <label class="form-field"><span>DL/site</span><div class="input-unit"><input id="downlinkMbps" type="number" min="1" max="1000" value="50"><b>Mbps</b></div></label>
+            <label class="form-field"><span>UL/site</span><div class="input-unit"><input id="uplinkMbps" type="number" min="1" max="500" value="10"><b>Mbps</b></div></label>
+          </div>
+
+          <label class="form-field"><span>Latency sensitivity</span>
+            <select id="latencySensitivity"><option value="low">Low — file delivery / broadcast</option><option value="medium" selected>Medium — enterprise applications</option><option value="high">High — cloud / voice / interactive</option></select>
+          </label>
+          <label class="form-field"><span>Target availability</span>
+            <select id="availabilityTarget"><option value="99.5">99.50%</option><option value="99.9" selected>99.90%</option><option value="99.95">99.95%</option><option value="99.99">99.99%</option></select>
+          </label>
+
+          <div class="toggle-grid">
+            <label><input id="needsVoip" type="checkbox" checked><span>VoIP</span></label>
+            <label><input id="needsIpsec" type="checkbox" checked><span>IPsec</span></label>
+            <label><input id="needsMulticast" type="checkbox"><span>Multicast</span></label>
+            <label><input id="needsQos" type="checkbox" checked><span>QoS</span></label>
+          </div>
+          <button id="analyzeBtn" class="primary-button">Analyze customer requirements</button>
+        </section>
+
+        <section class="panel compact-panel">
+          <div class="panel-title"><div><span class="section-tag">CRM</span><h2>Opportunity Tracking</h2></div><span class="step-number">02</span></div>
+          <div class="metric-row"><span>Stage</span><strong id="crmStage">Solution design</strong></div>
+          <div class="metric-row"><span>Win probability</span><strong id="winProbability">55%</strong></div>
+          <div class="metric-row"><span>Decision horizon</span><strong id="decisionHorizon">90 days</strong></div>
+          <div class="metric-row"><span>Next action</span><strong id="nextAction">Validate link budget</strong></div>
+        </section>
+      </aside>
+
+      <section class="map-column">
+        <div id="cesiumContainer"></div>
+        <div class="map-toolbar">
+          <button id="showAllBtn" class="active">ALL</button><button id="showGeoBtn">GEO</button><button id="showMeoBtn">MEO</button><button id="showCustomerBtn">CUSTOMER</button>
+        </div>
+
+        <div class="architecture-card">
+          <span class="section-tag">RECOMMENDED ARCHITECTURE</span>
+          <h2 id="architectureTitle">MEO Enterprise Connectivity</h2>
+          <p id="architectureReason">Low-latency MEO connectivity with QoS and encrypted IP transport.</p>
+          <div class="architecture-flow" id="architectureFlow"><span>Customer Sites</span><b>→</b><span>VSAT</span><b>→</b><span>MEO</span><b>→</b><span>Gateway</span><b>→</b><span>Cloud / HQ</span></div>
+        </div>
+
+        <div class="map-summary">
+          <div><span>Selected orbit</span><strong id="selectedOrbit">MEO</strong></div>
+          <div><span>Estimated RTT</span><strong id="mapLatency">135 ms</strong></div>
+          <div><span>Configured sites</span><strong id="mapSites">8</strong></div>
+          <div><span>Service region</span><strong id="mapRegion">Europe</strong></div>
+        </div>
+
+        <div class="legend">
+          <span><i class="legend-dot geo"></i>GEO</span><span><i class="legend-dot meo"></i>MEO</span><span><i class="legend-dot site"></i>Customer site</span><span><i class="legend-line"></i>Active service path</span>
+        </div>
+      </section>
+
+      <aside class="engineering-column">
+        <section class="panel">
+          <div class="panel-title"><div><span class="section-tag">ENGINEERING</span><h2>Terminal & RF Inputs</h2></div><span class="step-number">03</span></div>
+          <div class="two-column-fields">
+            <label class="form-field"><span>Band</span><select id="frequencyBand"><option value="C">C-band</option><option value="Ku" selected>Ku-band</option><option value="Ka">Ka-band</option></select></label>
+            <label class="form-field"><span>VSAT diameter</span><select id="antennaDiameter"><option value="0.75">0.75 m</option><option value="1.2" selected>1.20 m</option><option value="1.8">1.80 m</option><option value="2.4">2.40 m</option></select></label>
+          </div>
+          <div class="two-column-fields">
+            <label class="form-field"><span>HPA power</span><select id="hpaPower"><option value="2">2 W</option><option value="4">4 W</option><option value="8" selected>8 W</option><option value="16">16 W</option></select></label>
+            <label class="form-field"><span>Architecture</span><select id="architectureOverride"><option value="AUTO" selected>Auto recommendation</option><option value="GEO">Force GEO</option><option value="MEO">Force MEO</option><option value="HYBRID">Force Hybrid GEO+MEO</option></select></label>
+          </div>
+          <button id="calculateBtn" class="secondary-button">Recalculate solution</button>
+        </section>
+
+        <section class="panel link-budget-panel">
+          <div class="panel-title"><div><span class="section-tag">FEASIBILITY</span><h2>Link Budget Review</h2></div><span class="step-number">04</span></div>
+          <div class="budget-grid">
+            <div class="budget-card"><small>UPLINK MARGIN</small><strong id="uplinkMargin">4.8 dB</strong><span id="uplinkStatus">Feasible</span></div>
+            <div class="budget-card"><small>DOWNLINK MARGIN</small><strong id="downlinkMargin">6.2 dB</strong><span id="downlinkStatus">Feasible</span></div>
+            <div class="budget-card"><small>REQUIRED BANDWIDTH</small><strong id="requiredBandwidth">1.41 GHz</strong><span>Growth included</span></div>
+            <div class="budget-card"><small>MODULATION</small><strong id="modulation">8PSK</strong><span id="coding">FEC 3/4</span></div>
+          </div>
+          <div class="metric-row"><span>Uplink frequency</span><strong id="uplinkFrequency">14.00 GHz</strong></div>
+          <div class="metric-row"><span>Downlink frequency</span><strong id="downlinkFrequency">12.00 GHz</strong></div>
+          <div class="metric-row"><span>Terminal EIRP</span><strong id="terminalEirp">48.2 dBW</strong></div>
+          <div class="metric-row"><span>Estimated path loss</span><strong id="pathLoss">196.8 dB</strong></div>
+          <div class="metric-row"><span>Weather allowance</span><strong id="weatherAllowance">3.0 dB</strong></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title"><div><span class="section-tag">COMMERCIAL</span><h2>Value & Opportunity</h2></div><span class="step-number">05</span></div>
+          <div class="value-score"><div><small>SOLUTION FIT</small><strong id="solutionFit">88</strong><span>/100</span></div><canvas id="fitGauge" width="180" height="95"></canvas></div>
+          <div class="metric-row"><span>Protected capacity</span><strong id="protectedCapacity">1.50 Gbps</strong></div>
+          <div class="metric-row"><span>Commercial index</span><strong id="commercialIndex">1.15×</strong></div>
+          <div class="metric-row"><span>Illustrative MRC</span><strong id="illustrativeMrc">€84,500</strong></div>
+          <div class="metric-row"><span>Growth opportunity</span><strong id="growthOpportunity">High</strong></div>
+          <p class="disclaimer">Illustrative portfolio model only. It does not represent SES pricing, coverage commitments, or an official engineering tool.</p>
+        </section>
+      </aside>
+    </main>
+
+    <section class="bottom-area">
+      <div class="comparison-panel">
+        <div class="bottom-heading"><div><span class="section-tag">OPTION ANALYSIS</span><h2>GEO vs MEO vs Hybrid</h2></div><div class="comparison-actions"><button id="selectGeoBtn">Select GEO</button><button id="selectMeoBtn">Select MEO</button><button id="selectHybridBtn">Select Hybrid</button></div></div>
+        <canvas id="comparisonChart" width="980" height="185"></canvas>
+      </div>
+      <div class="proposal-panel">
+        <div class="bottom-heading"><div><span class="section-tag">CUSTOMER-FACING OUTPUT</span><h2>Executive Recommendation</h2></div><div class="proposal-actions"><button id="copyProposalBtn">Copy</button><button id="downloadProposalBtn" class="primary-button small">Download</button></div></div>
+        <div id="proposalText" class="proposal-text"></div>
+      </div>
+    </section>
+  </div>
+  <script src="./script.js?v=1"></script>
+</body>
+</html>
