@@ -39,7 +39,7 @@ const bandProfiles={
   Ka:{uplinkGHz:29.0,downlinkGHz:19.7,efficiency:.58,baseRainDb:5.2}
 };
 
-const serviceState={architecture:"MEO",recommendation:"MEO",geoLongitude:18,meoBaseLongitude:-30,siteEntities:[],linkEntities:[],coverageEntities:[],satelliteEntities:[],orbitEntities:[]};
+const serviceState={architecture:"MEO",recommendation:"MEO",geoLongitude:18,meoBaseLongitude:-30,siteEntities:[],linkEntities:[],coverageEntities:[],satelliteEntities:[],orbitEntities:[],motionRunning:false,motionSpeedDegPerSecond:7};
 
 function clamp(v,min,max){return Math.min(Math.max(v,min),max)}
 function numberValue(id,fallback=0){const v=Number(document.getElementById(id).value);return Number.isFinite(v)?v:fallback}
@@ -137,7 +137,7 @@ function updateCrm(r,fit,b){const margin=Math.min(b.uplinkMargin,b.downlinkMargi
 function proposalTextFor(r,a,b,fit){
   const o=orbitProfiles[a],margin=Math.min(b.uplinkMargin,b.downlinkMargin),features=[r.qos?"QoS":null,r.ipsec?"IPsec":null,r.voip?"VoIP prioritization":null,r.multicast?"multicast":null].filter(Boolean).join(", ");
   const technical=margin>=3?"The preliminary link budget provides appropriate engineering margin.":margin>=0?"The preliminary link budget is feasible but requires detailed optimization.":"The current terminal and capacity assumptions require redesign before proposal submission.";
-  return`CUSTOMER OPPORTUNITY\n${r.opportunity}\n\nCUSTOMER NEED\nThe customer requires ${segmentLabel(r.segment)} across ${r.sites} site(s) in ${regionProfiles[r.region].label}, with ${r.downlinkMbps} Mbps downlink and ${r.uplinkMbps} Mbps uplink per site. The design includes ${Math.round((r.growthFactor-1)*100)}% traffic growth and a target availability of ${r.availabilityTarget.toFixed(2)}%.\n\nRECOMMENDED SOLUTION\n${o.title}. ${architectureServiceText(r,a)}\n\nTECHNICAL FEASIBILITY\nProtected capacity: ${(b.protectedCapacityMbps/1000).toFixed(2)} Gbps\nEstimated RTT: ${o.estimatedRttMs} ms\nRF band: ${r.band}-band\nTerminal: ${r.antennaDiameterM.toFixed(2)} m VSAT with ${r.hpaPowerW} W HPA\nModulation: ${b.modulation.name}, ${b.modulation.coding}\nUplink margin: ${b.uplinkMargin.toFixed(1)} dB\nDownlink margin: ${b.downlinkMargin.toFixed(1)} dB\n${technical}\n\nIP SERVICE DESIGN\n${features||"Managed IP connectivity"} will be incorporated into the end-to-end design. Traffic classes should be validated with the customer, including real-time, critical, business, and best-effort flows.\n\nCUSTOMER VALUE\nThe proposed architecture balances application performance, regional coverage, resilience, and scalable capacity. The current solution-fit score is ${fit}/100.\n\nNEXT STEPS\n1. Confirm traffic profiles, busy-hour assumptions, and site coordinates.\n2. Validate detailed link budgets with the Link Engineering team.\n3. Confirm gateway diversity, routing, QoS, security, and service demarcation.\n4. Prepare the technical proposal, implementation plan, and commercial quotation.\n5. Record customer actions, risks, and decision milestones in the CRM opportunity.\n\nPORTFOLIO DISCLAIMER\nThis is an illustrative engineering simulator and not an official SES design, quotation, coverage commitment, or engineering tool.`
+  return`CUSTOMER OPPORTUNITY\n${r.opportunity}\n\nCUSTOMER NEED\nThe customer requires ${segmentLabel(r.segment)} across ${r.sites} site(s) in ${regionProfiles[r.region].label}, with ${r.downlinkMbps} Mbps downlink and ${r.uplinkMbps} Mbps uplink per site. The design includes ${Math.round((r.growthFactor-1)*100)}% traffic growth and a target availability of ${r.availabilityTarget.toFixed(2)}%.\n\nRECOMMENDED SOLUTION\n${o.title}. ${architectureServiceText(r,a)}\n\nTECHNICAL FEASIBILITY\nProtected capacity: ${(b.protectedCapacityMbps/1000).toFixed(2)} Gbps\nEstimated RTT: ${o.estimatedRttMs} ms\nRF band: ${r.band}-band\nTerminal: ${r.antennaDiameterM.toFixed(2)} m VSAT with ${r.hpaPowerW} W HPA\nModulation: ${b.modulation.name}, ${b.modulation.coding}\nUplink margin: ${b.uplinkMargin.toFixed(1)} dB\nDownlink margin: ${b.downlinkMargin.toFixed(1)} dB\n${technical}\n\nIP SERVICE DESIGN\n${features||"Managed IP connectivity"} will be incorporated into the end-to-end design. Traffic classes should be validated with the customer, including real-time, critical, business, and best-effort flows.\n\nCUSTOMER VALUE\nThe proposed architecture balances application performance, regional coverage, resilience, and scalable capacity. The current solution-fit score is ${fit}/100.\n\nNEXT STEPS\n1. Confirm traffic profiles, busy-hour assumptions, and site coordinates.\n2. Validate detailed link budgets with the Link Engineering team.\n3. Confirm gateway diversity, routing, QoS, security, and service demarcation.\n4. Prepare the technical proposal, implementation plan, and commercial quotation.\n5. Record customer actions, risks, and decision milestones in the CRM opportunity.`
 }
 
 function updateProposal(r,a,b,fit){proposalText.textContent=proposalTextFor(r,a,b,fit)}
@@ -154,7 +154,34 @@ function addSatellite(name,position,color,labelText,scale=1,opacity=1){const e=v
 function addCoverage(position,radiusM,color,fillOpacity=.08,outlineOpacity=.65){const e=viewer.entities.add({position,ellipse:{semiMajorAxis:radiusM,semiMinorAxis:radiusM,material:color.withAlpha(fillOpacity),outline:true,outlineColor:color.withAlpha(outlineOpacity),height:5000}});serviceState.coverageEntities.push(e)}
 function regionSiteCoordinates(regionKey,siteCount){const p=regionProfiles[regionKey],count=Math.min(siteCount,18),coords=[];for(let i=0;i<count;i++){const angle=i*2.3999632297,r=Math.sqrt((i+1)/count),lon=p.lon+Math.cos(angle)*p.spreadLon*r,lat=p.lat+Math.sin(angle)*p.spreadLat*r;coords.push({lon,lat:clamp(lat,-72,72)})}return coords}
 function addCustomerSites(r){const sites=regionSiteCoordinates(r.region,r.sites);sites.forEach((s,i)=>{const pos=Cesium.Cartesian3.fromDegrees(s.lon,s.lat,0),e=viewer.entities.add({name:`Customer Site ${i+1}`,position:pos,point:{pixelSize:i===0?11:7,color:Cesium.Color.fromCssColorString("#ffc857"),outlineColor:Cesium.Color.BLACK,outlineWidth:2,disableDepthTestDistance:Number.POSITIVE_INFINITY},label:{text:i===0?"PRIMARY CUSTOMER SITE":"",font:"bold 11px Arial",fillColor:Cesium.Color.fromCssColorString("#ffc857"),outlineColor:Cesium.Color.BLACK,outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new Cesium.Cartesian2(0,-18),disableDepthTestDistance:Number.POSITIVE_INFINITY}});serviceState.siteEntities.push(e)});return sites}
-function addLink(start,end,color,dashed=false){const material=dashed?new Cesium.PolylineDashMaterialProperty({color,dashLength:12}):color,e=viewer.entities.add({polyline:{positions:[start,end],width:3,material}});serviceState.linkEntities.push(e)}
+function resolveDynamicPosition(positionOrFunction){
+  return typeof positionOrFunction==="function"
+    ?positionOrFunction()
+    :positionOrFunction;
+}
+function addLink(start,end,color,dashed=false){
+  const material=dashed
+    ?new Cesium.PolylineDashMaterialProperty({color,dashLength:12})
+    :color;
+
+  const positions=new Cesium.CallbackProperty(
+    ()=>[
+      resolveDynamicPosition(start),
+      resolveDynamicPosition(end)
+    ],
+    false
+  );
+
+  const entity=viewer.entities.add({
+    polyline:{
+      positions,
+      width:3,
+      material
+    }
+  });
+
+  serviceState.linkEntities.push(entity);
+}
 
 function renderNetwork(r,a){
   clearMapEntities();
@@ -228,34 +255,60 @@ function renderNetwork(r,a){
     meoActive?2.8:1.5
   );
 
-  // Six MEO satellites distributed consistently across two planes:
+  // Six MEO satellites distributed across two orbital planes:
   // Plane A: MEO-1, MEO-3, MEO-5
   // Plane B: MEO-2, MEO-4, MEO-6
   for(let i=0;i<6;i++){
     const planeName=i%2===0?"A":"B";
     const planePhaseDeg=planeName==="A"?0:90;
     const slotInPlane=Math.floor(i/2);
-
-    // Three satellites per plane, separated by 120 degrees.
-    // Plane B is offset by 60 degrees in longitude.
     const planeLongitudeOffsetDeg=planeName==="A"?0:60;
-    const lon=(
-      (
-        serviceState.meoBaseLongitude+
-        slotInPlane*120+
-        planeLongitudeOffsetDeg+
-        180
-      )%360
-    )-180;
 
-    const lat=28*Math.sin(
-      Cesium.Math.toRadians(lon+planePhaseDeg)
+    const positionCoordinates=()=>{
+      const longitude=(
+        (
+          serviceState.meoBaseLongitude+
+          slotInPlane*120+
+          planeLongitudeOffsetDeg+
+          180
+        )%360
+      )-180;
+
+      const latitude=28*Math.sin(
+        Cesium.Math.toRadians(longitude+planePhaseDeg)
+      );
+
+      return {longitude,latitude};
+    };
+
+    const meoPositionFunction=()=>{
+      const coordinates=positionCoordinates();
+
+      return Cesium.Cartesian3.fromDegrees(
+        coordinates.longitude,
+        coordinates.latitude,
+        MEO_ALTITUDE_M
+      );
+    };
+
+    const meoGroundPositionFunction=()=>{
+      const coordinates=positionCoordinates();
+
+      return Cesium.Cartesian3.fromDegrees(
+        coordinates.longitude,
+        coordinates.latitude,
+        0
+      );
+    };
+
+    const dynamicPosition=new Cesium.CallbackPositionProperty(
+      meoPositionFunction,
+      false
     );
 
-    const pos=Cesium.Cartesian3.fromDegrees(
-      lon,
-      lat,
-      MEO_ALTITUDE_M
+    const dynamicGroundPosition=new Cesium.CallbackPositionProperty(
+      meoGroundPositionFunction,
+      false
     );
 
     const isPrimary=i===0;
@@ -269,7 +322,7 @@ function renderNetwork(r,a){
 
     addSatellite(
       `MEO-${i+1}`,
-      pos,
+      dynamicPosition,
       Cesium.Color.CYAN,
       satelliteLabel,
       meoActive?(isPrimary?1.05:.78):.66,
@@ -277,7 +330,7 @@ function renderNetwork(r,a){
     );
 
     addCoverage(
-      Cesium.Cartesian3.fromDegrees(lon,lat,0),
+      dynamicGroundPosition,
       3200000,
       Cesium.Color.CYAN,
       meoActive?.075:.018,
@@ -285,7 +338,11 @@ function renderNetwork(r,a){
     );
 
     if(meoActive&&isPrimary){
-      addLink(primary,pos,Cesium.Color.CYAN);
+      addLink(
+        primary,
+        meoPositionFunction,
+        Cesium.Color.CYAN
+      );
     }
   }
 
@@ -348,7 +405,47 @@ showGeoBtn.addEventListener("click",()=>{document.querySelectorAll(".map-toolbar
 showMeoBtn.addEventListener("click",()=>{document.querySelectorAll(".map-toolbar button").forEach(b=>b.classList.remove("active"));showMeoBtn.classList.add("active");viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(serviceState.meoBaseLongitude,20,26000000),duration:1.7})});
 showCustomerBtn.addEventListener("click",()=>{document.querySelectorAll(".map-toolbar button").forEach(b=>b.classList.remove("active"));showCustomerBtn.classList.add("active");const region=regionProfiles[collectRequirements().region];viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(region.lon,region.lat+4,6500000),duration:1.7})});
 
+motionBtn.addEventListener("click",()=>{
+  serviceState.motionRunning=!serviceState.motionRunning;
+
+  motionBtn.textContent=serviceState.motionRunning
+    ?"PAUSE MOTION"
+    :"START MOTION";
+
+  motionBtn.classList.toggle(
+    "running",
+    serviceState.motionRunning
+  );
+});
+
 ["opportunityName","customerSegment","serviceRegion","siteCount","trafficGrowth","downlinkMbps","uplinkMbps","latencySensitivity","availabilityTarget","needsVoip","needsIpsec","needsMulticast","needsQos","frequencyBand","antennaDiameter","hpaPower","architectureOverride"].forEach(id=>document.getElementById(id).addEventListener("change",()=>{if(id==="opportunityName")headerOpportunity.textContent=opportunityName.value||"Customer Opportunity"}));
+
+let previousMotionTime=performance.now();
+
+function animateSatelliteMotion(now){
+  const elapsedSeconds=Math.min(
+    (now-previousMotionTime)/1000,
+    .1
+  );
+
+  previousMotionTime=now;
+
+  if(serviceState.motionRunning){
+    serviceState.meoBaseLongitude+=
+      serviceState.motionSpeedDegPerSecond*
+      elapsedSeconds;
+
+    if(serviceState.meoBaseLongitude>180){
+      serviceState.meoBaseLongitude-=360;
+    }
+
+    viewer.scene.requestRender();
+  }
+
+  requestAnimationFrame(animateSatelliteMotion);
+}
+
+requestAnimationFrame(animateSatelliteMotion);
 
 viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(10,18,85000000)});
 drawCurrentSolution();
