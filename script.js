@@ -149,18 +149,161 @@ function drawComparison(r){const c=comparisonChart,ctx=c.getContext("2d"),w=c.wi
 
 function clearMapEntities(){[...serviceState.siteEntities,...serviceState.linkEntities,...serviceState.coverageEntities,...serviceState.satelliteEntities,...serviceState.orbitEntities].forEach(e=>viewer.entities.remove(e));serviceState.siteEntities=[];serviceState.linkEntities=[];serviceState.coverageEntities=[];serviceState.satelliteEntities=[];serviceState.orbitEntities=[]}
 function orbitPositions(altitudeM,inclinationDeg=0,phaseDeg=0){const p=[];for(let lon=-180;lon<=180;lon+=2){const lat=inclinationDeg*Math.sin(Cesium.Math.toRadians(lon+phaseDeg));p.push(Cesium.Cartesian3.fromDegrees(lon,lat,altitudeM))}return p}
-function addOrbit(name,alt,color,inc,phase){const e=viewer.entities.add({name,polyline:{positions:orbitPositions(alt,inc,phase),width:2.5,material:color.withAlpha(.72),arcType:Cesium.ArcType.NONE}});serviceState.orbitEntities.push(e)}
-function addSatellite(name,position,color,labelText,scale=1){const e=viewer.entities.add({name,position,billboard:{image:"./satellite.png",width:40*scale,height:40*scale,disableDepthTestDistance:Number.POSITIVE_INFINITY},label:{text:labelText,font:"bold 12px Arial",fillColor:color,outlineColor:Cesium.Color.BLACK,outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,showBackground:true,backgroundColor:Cesium.Color.BLACK.withAlpha(.72),pixelOffset:new Cesium.Cartesian2(0,-38),disableDepthTestDistance:Number.POSITIVE_INFINITY}});serviceState.satelliteEntities.push(e);return e}
-function addCoverage(position,radiusM,color){const e=viewer.entities.add({position,ellipse:{semiMajorAxis:radiusM,semiMinorAxis:radiusM,material:color.withAlpha(.08),outline:true,outlineColor:color.withAlpha(.65),height:5000}});serviceState.coverageEntities.push(e)}
+function addOrbit(name,alt,color,inc,phase,opacity=.72,width=2.5){const e=viewer.entities.add({name,polyline:{positions:orbitPositions(alt,inc,phase),width,material:color.withAlpha(opacity),arcType:Cesium.ArcType.NONE}});serviceState.orbitEntities.push(e)}
+function addSatellite(name,position,color,labelText,scale=1,opacity=1){const e=viewer.entities.add({name,position,billboard:{image:"./satellite.png",width:40*scale,height:40*scale,color:Cesium.Color.WHITE.withAlpha(opacity),disableDepthTestDistance:Number.POSITIVE_INFINITY},label:{text:labelText,font:"bold 12px Arial",fillColor:color.withAlpha(Math.max(opacity,.38)),outlineColor:Cesium.Color.BLACK,outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,showBackground:true,backgroundColor:Cesium.Color.BLACK.withAlpha(.72),pixelOffset:new Cesium.Cartesian2(0,-38),disableDepthTestDistance:Number.POSITIVE_INFINITY,scale:opacity<.6?.82:1}});serviceState.satelliteEntities.push(e);return e}
+function addCoverage(position,radiusM,color,fillOpacity=.08,outlineOpacity=.65){const e=viewer.entities.add({position,ellipse:{semiMajorAxis:radiusM,semiMinorAxis:radiusM,material:color.withAlpha(fillOpacity),outline:true,outlineColor:color.withAlpha(outlineOpacity),height:5000}});serviceState.coverageEntities.push(e)}
 function regionSiteCoordinates(regionKey,siteCount){const p=regionProfiles[regionKey],count=Math.min(siteCount,18),coords=[];for(let i=0;i<count;i++){const angle=i*2.3999632297,r=Math.sqrt((i+1)/count),lon=p.lon+Math.cos(angle)*p.spreadLon*r,lat=p.lat+Math.sin(angle)*p.spreadLat*r;coords.push({lon,lat:clamp(lat,-72,72)})}return coords}
 function addCustomerSites(r){const sites=regionSiteCoordinates(r.region,r.sites);sites.forEach((s,i)=>{const pos=Cesium.Cartesian3.fromDegrees(s.lon,s.lat,0),e=viewer.entities.add({name:`Customer Site ${i+1}`,position:pos,point:{pixelSize:i===0?11:7,color:Cesium.Color.fromCssColorString("#ffc857"),outlineColor:Cesium.Color.BLACK,outlineWidth:2,disableDepthTestDistance:Number.POSITIVE_INFINITY},label:{text:i===0?"PRIMARY CUSTOMER SITE":"",font:"bold 11px Arial",fillColor:Cesium.Color.fromCssColorString("#ffc857"),outlineColor:Cesium.Color.BLACK,outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new Cesium.Cartesian2(0,-18),disableDepthTestDistance:Number.POSITIVE_INFINITY}});serviceState.siteEntities.push(e)});return sites}
 function addLink(start,end,color,dashed=false){const material=dashed?new Cesium.PolylineDashMaterialProperty({color,dashLength:12}):color,e=viewer.entities.add({polyline:{positions:[start,end],width:3,material}});serviceState.linkEntities.push(e)}
 
-function renderNetwork(r,a){clearMapEntities();const sites=addCustomerSites(r),primary=Cesium.Cartesian3.fromDegrees(sites[0].lon,sites[0].lat,0),region=regionProfiles[r.region];
-  if(a==="GEO"||a==="HYBRID"){addOrbit("GEO Orbit",GEO_ALTITUDE_M,Cesium.Color.LIME,0,0);const geoPos=Cesium.Cartesian3.fromDegrees(serviceState.geoLongitude,0,GEO_ALTITUDE_M);addSatellite("GEO Solution Satellite",geoPos,Cesium.Color.LIME,a==="HYBRID"?"GEO DIVERSITY":"GEO PRIMARY",1.08);addCoverage(Cesium.Cartesian3.fromDegrees(serviceState.geoLongitude,0,0),7000000,Cesium.Color.LIME);addLink(primary,geoPos,Cesium.Color.LIME,a==="HYBRID")}
-  if(a==="MEO"||a==="HYBRID"){addOrbit("MEO Plane A",MEO_ALTITUDE_M,Cesium.Color.CYAN,28,0);addOrbit("MEO Plane B",MEO_ALTITUDE_M,Cesium.Color.CYAN,28,90);for(let i=0;i<6;i++){const lon=((serviceState.meoBaseLongitude+i*60+180)%360)-180,lat=28*Math.sin(Cesium.Math.toRadians(lon)),pos=Cesium.Cartesian3.fromDegrees(lon,lat,MEO_ALTITUDE_M);addSatellite(`MEO-${i+1}`,pos,Cesium.Color.CYAN,i===0?"MEO PRIMARY":`MEO-${i+1}`,i===0?1.05:.78);addCoverage(Cesium.Cartesian3.fromDegrees(lon,lat,0),3200000,Cesium.Color.CYAN);if(i===0)addLink(primary,pos,Cesium.Color.CYAN)}}
-  const gatewayPos=Cesium.Cartesian3.fromDegrees(region.lon+7,region.lat+4,0),gateway=viewer.entities.add({name:"Regional Gateway",position:gatewayPos,point:{pixelSize:12,color:Cesium.Color.ORANGE,outlineColor:Cesium.Color.BLACK,outlineWidth:2,disableDepthTestDistance:Number.POSITIVE_INFINITY},label:{text:"REGIONAL GATEWAY",font:"bold 11px Arial",fillColor:Cesium.Color.ORANGE,outlineColor:Cesium.Color.BLACK,outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new Cesium.Cartesian2(0,-20),disableDepthTestDistance:Number.POSITIVE_INFINITY}});serviceState.siteEntities.push(gateway);addLink(primary,gatewayPos,Cesium.Color.ORANGE,true);
-  viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(region.lon,region.lat+10,a==="GEO"?70000000:33000000),duration:1.6})
+function renderNetwork(r,a){
+  clearMapEntities();
+
+  const sites=addCustomerSites(r);
+  const primary=Cesium.Cartesian3.fromDegrees(sites[0].lon,sites[0].lat,0);
+  const region=regionProfiles[r.region];
+  const geoActive=a==="GEO"||a==="HYBRID";
+  const meoActive=a==="MEO"||a==="HYBRID";
+
+  // Always display the GEO option. It is bright when selected and muted
+  // when it is only an alternative architecture.
+  const geoColor=Cesium.Color.LIME;
+  const geoPos=Cesium.Cartesian3.fromDegrees(
+    serviceState.geoLongitude,
+    0,
+    GEO_ALTITUDE_M
+  );
+
+  addOrbit(
+    "GEO Orbit",
+    GEO_ALTITUDE_M,
+    geoColor,
+    0,
+    0,
+    geoActive?.82:.24,
+    geoActive?3.2:1.6
+  );
+
+  addSatellite(
+    "GEO Solution Satellite",
+    geoPos,
+    geoColor,
+    geoActive
+      ?(a==="HYBRID"?"GEO DIVERSITY":"GEO PRIMARY")
+      :"GEO OPTION",
+    geoActive?1.10:.82,
+    geoActive?1:.44
+  );
+
+  addCoverage(
+    Cesium.Cartesian3.fromDegrees(serviceState.geoLongitude,0,0),
+    7000000,
+    geoColor,
+    geoActive?.10:.025,
+    geoActive?.72:.24
+  );
+
+  if(geoActive){
+    addLink(primary,geoPos,geoColor,a==="HYBRID");
+  }
+
+  // Always display the MEO constellation. It is emphasized only when
+  // the MEO path forms part of the recommended solution.
+  addOrbit(
+    "MEO Plane A",
+    MEO_ALTITUDE_M,
+    Cesium.Color.CYAN,
+    28,
+    0,
+    meoActive?.78:.20,
+    meoActive?2.8:1.5
+  );
+  addOrbit(
+    "MEO Plane B",
+    MEO_ALTITUDE_M,
+    Cesium.Color.CYAN,
+    28,
+    90,
+    meoActive?.78:.20,
+    meoActive?2.8:1.5
+  );
+
+  for(let i=0;i<6;i++){
+    const lon=((serviceState.meoBaseLongitude+i*60+180)%360)-180;
+    const lat=28*Math.sin(Cesium.Math.toRadians(lon));
+    const pos=Cesium.Cartesian3.fromDegrees(lon,lat,MEO_ALTITUDE_M);
+    const isPrimary=i===0;
+
+    addSatellite(
+      `MEO-${i+1}`,
+      pos,
+      Cesium.Color.CYAN,
+      meoActive
+        ?(isPrimary?"MEO PRIMARY":`MEO-${i+1}`)
+        :`MEO-${i+1} OPTION`,
+      meoActive?(isPrimary?1.05:.78):.66,
+      meoActive?1:.34
+    );
+
+    addCoverage(
+      Cesium.Cartesian3.fromDegrees(lon,lat,0),
+      3200000,
+      Cesium.Color.CYAN,
+      meoActive?.075:.018,
+      meoActive?.58:.18
+    );
+
+    if(meoActive&&isPrimary){
+      addLink(primary,pos,Cesium.Color.CYAN);
+    }
+  }
+
+  const gatewayPos=Cesium.Cartesian3.fromDegrees(
+    region.lon+7,
+    region.lat+4,
+    0
+  );
+
+  const gateway=viewer.entities.add({
+    name:"Regional Gateway",
+    position:gatewayPos,
+    point:{
+      pixelSize:12,
+      color:Cesium.Color.ORANGE,
+      outlineColor:Cesium.Color.BLACK,
+      outlineWidth:2,
+      disableDepthTestDistance:Number.POSITIVE_INFINITY
+    },
+    label:{
+      text:"REGIONAL GATEWAY",
+      font:"bold 11px Arial",
+      fillColor:Cesium.Color.ORANGE,
+      outlineColor:Cesium.Color.BLACK,
+      outlineWidth:3,
+      style:Cesium.LabelStyle.FILL_AND_OUTLINE,
+      pixelOffset:new Cesium.Cartesian2(0,-20),
+      disableDepthTestDistance:Number.POSITIVE_INFINITY
+    }
+  });
+
+  serviceState.siteEntities.push(gateway);
+  addLink(primary,gatewayPos,Cesium.Color.ORANGE,true);
+
+  // Use a constellation-level view so GEO remains visible even when
+  // MEO is the recommended architecture.
+  document.querySelectorAll(".map-toolbar button").forEach(
+    button=>button.classList.remove("active")
+  );
+  document.getElementById("showAllBtn").classList.add("active");
+
+  viewer.camera.flyTo({
+    destination:Cesium.Cartesian3.fromDegrees(
+      region.lon,
+      region.lat+9,
+      85000000
+    ),
+    duration:1.6
+  });
 }
 
 function drawCurrentSolution(){const r=collectRequirements();serviceState.recommendation=recommendArchitecture(r);serviceState.architecture=serviceState.recommendation;const b=calculateLinkBudget(r,serviceState.architecture),fit=calculateSolutionFit(r,serviceState.architecture,b);updateHeader(r,b);updateArchitecturePanel(r,serviceState.architecture);updateBudgetPanel(r,serviceState.architecture,b);updateCommercialPanel(r,serviceState.architecture,b,fit);updateCrm(r,fit,b);updateProposal(r,serviceState.architecture,b,fit);drawComparison(r);renderNetwork(r,serviceState.architecture)}
